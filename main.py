@@ -17,7 +17,6 @@ def main():
     parser.add_argument("--load_path", type=str, default="", help="Path to load model for evaluation")
     parser.add_argument("--episodes", type=int, default=5, help="Number of episodes for evaluation")
     parser.add_argument("--render", action="store_true", help="Render environment during evaluation")
-    parser.add_argument("--gpu", action="store_true", help="Use GPU if available")
 
     args = parser.parse_args()
 

@@ -7,12 +7,14 @@ from src.utils.env_utils import make_env
 from src.agents.dqn import DQN
 from src.agents.ppo import PPO
 
+
 def train(args):
-    device = torch.device("cuda" if torch.cuda.is_available() and args.gpu else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
     # Create environment
-    env = make_env(args.scenario)
+    render_mode = "human" if args.render else None
+    env = make_env(args.scenario, render_mode=render_mode)
 
     # Initialize agent
     config = {
@@ -27,16 +29,16 @@ def train(args):
         "memory_size": 15000,
         "target_update": 50,
         "k_epochs": 4,
-        "eps_clip": 0.2
+        "eps_clip": 0.2,
     }
 
     # Custom layers config if model is custom
     if args.model == "custom":
         # Example custom config
         config["layers_config"] = [
-            {'out_channels': 16, 'kernel_size': 5, 'stride': 2},
-            {'out_channels': 32, 'kernel_size': 3, 'stride': 2},
-            {'out_channels': 64, 'kernel_size': 3, 'stride': 2}
+            {"out_channels": 16, "kernel_size": 5, "stride": 2},
+            {"out_channels": 32, "kernel_size": 3, "stride": 2},
+            {"out_channels": 64, "kernel_size": 3, "stride": 2},
         ]
 
     if args.algo == "dqn":
@@ -45,6 +47,29 @@ def train(args):
         agent = PPO(env.observation_space, env.action_space, config, device)
     else:
         raise ValueError(f"Unknown algorithm: {args.algo}")
+
+    # Print model and settings information
+    print(f"Algorithm: {args.algo.upper()}")
+    print(f"Model: {args.model}")
+    print(f"Output dimension: {args.output_dim}")
+    print(f"Learning rate: {args.lr}")
+    print(f"Discount factor (gamma): {args.gamma}")
+    print(f"Batch size: {args.batch_size}")
+    if args.algo == "dqn":
+        print(f"Epsilon start: {config['epsilon_start']}")
+        print(f"Epsilon end: {config['epsilon_end']}")
+        print(f"Epsilon decay: {config['epsilon_decay']}")
+        print(f"Memory size: {config['memory_size']}")
+        print(f"Target update frequency: {config['target_update']}")
+    elif args.algo == "ppo":
+        print(f"K epochs: {config['k_epochs']}")
+        print(f"Epsilon clip: {config['eps_clip']}")
+    if args.model == "custom":
+        print(f"Custom layers config: {config['layers_config']}")
+    print(f"Total timesteps: {args.total_timesteps}")
+    print(f"Scenario: {args.scenario}")
+    print(f"Rendering: {'Enabled' if args.render else 'Disabled'}")
+    print()
 
     # Training Loop
     episode_rewards = []
@@ -64,6 +89,9 @@ def train(args):
         truncated = False
 
         while not (done or truncated):
+            if args.render:
+                env.render()
+
             if args.algo == "dqn":
                 action = agent.select_action(state)
                 next_state, reward, done, truncated, _ = env.step(action)
@@ -110,7 +138,9 @@ def train(args):
 
     # Save model
     os.makedirs(args.save_dir, exist_ok=True)
-    save_path = os.path.join(args.save_dir, f"{args.algo}_{args.scenario}_{args.model}.pth")
+    save_path = os.path.join(
+        args.save_dir, f"{args.algo}_{args.scenario}_{args.model}.pth"
+    )
     agent.save(save_path)
     print(f"Model saved to {save_path}")
 
@@ -120,7 +150,9 @@ def train(args):
     plt.title(f"{args.algo} on {args.scenario}")
     plt.xlabel("Episode")
     plt.ylabel("Reward")
-    plt.savefig(os.path.join(args.save_dir, f"training_curve_{args.algo}_{args.scenario}.png"))
+    plt.savefig(
+        os.path.join(args.save_dir, f"training_curve_{args.algo}_{args.scenario}.png")
+    )
     print(f"Training curve saved.")
 
     return save_path

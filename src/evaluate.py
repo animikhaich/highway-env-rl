@@ -6,8 +6,9 @@ from src.utils.env_utils import make_env
 from src.agents.dqn import DQN
 from src.agents.ppo import PPO
 
+
 def evaluate(args):
-    device = torch.device("cuda" if torch.cuda.is_available() and args.gpu else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
     # Create environment
@@ -19,14 +20,20 @@ def evaluate(args):
         "model_name": args.model,
         "model_output_dim": args.output_dim,
         # Dummy values for evaluation
-        "lr": 0, "gamma": 0, "batch_size": 0, "target_update": 0, "epsilon_start": 0, "epsilon_end": 0, "epsilon_decay": 1
+        "lr": 0,
+        "gamma": 0,
+        "batch_size": 0,
+        "target_update": 0,
+        "epsilon_start": 0,
+        "epsilon_end": 0,
+        "epsilon_decay": 1,
     }
 
     if args.model == "custom":
         config["layers_config"] = [
-            {'out_channels': 16, 'kernel_size': 5, 'stride': 2},
-            {'out_channels': 32, 'kernel_size': 3, 'stride': 2},
-            {'out_channels': 64, 'kernel_size': 3, 'stride': 2}
+            {"out_channels": 16, "kernel_size": 5, "stride": 2},
+            {"out_channels": 32, "kernel_size": 3, "stride": 2},
+            {"out_channels": 64, "kernel_size": 3, "stride": 2},
         ]
 
     if args.algo == "dqn":
@@ -42,6 +49,15 @@ def evaluate(args):
 
     agent.load(args.load_path)
     print(f"Model loaded from {args.load_path}")
+
+    # Print model and settings information
+    print(f"Algorithm: {args.algo.upper()}")
+    print(f"Model: {args.model}")
+    print(f"Output dimension: {args.output_dim}")
+    print(f"Scenario: {args.scenario}")
+    print(f"Episodes: {args.episodes}")
+    print(f"Rendering: {'Enabled' if args.render else 'Disabled'}")
+    print()
 
     rewards = []
 
@@ -70,6 +86,7 @@ def evaluate(args):
             # Save video
             try:
                 from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
+
                 clip = ImageSequenceClip([f for f in frames], fps=30)
                 os.makedirs("videos", exist_ok=True)
                 video_path = f"videos/{args.algo}_{args.scenario}_ep{ep+1}.mp4"
