@@ -6,6 +6,7 @@ from torch.distributions import Categorical
 from src.agents.base_agent import BaseAgent
 from src.models.cnn import get_model
 
+
 class PPO(BaseAgent):
     def __init__(self, observation_space, action_space, config, device):
         super(PPO, self).__init__(observation_space, action_space, device)
@@ -26,23 +27,31 @@ class PPO(BaseAgent):
         # I'll use separate feature extractors for Actor and Critic to be safe and simple.
 
         # Actor
-        if 'model_name' in config:
-            del config['model_name']
-        self.actor_fe = get_model(model_name, input_shape, model_output_dim, **config).to(device)
+        if "model_name" in config:
+            del config["model_name"]
+        self.actor_fe = get_model(
+            model_name, input_shape, model_output_dim, **config
+        ).to(device)
         self.actor_head = nn.Linear(model_output_dim, self.n_actions).to(device)
 
         # Critic
-        self.critic_fe = get_model(model_name, input_shape, model_output_dim, **config).to(device)
+        self.critic_fe = get_model(
+            model_name, input_shape, model_output_dim, **config
+        ).to(device)
         self.critic_head = nn.Linear(model_output_dim, 1).to(device)
 
-        self.optimizer = optim.Adam([
-            {'params': self.actor_fe.parameters(), 'lr': self.lr},
-            {'params': self.actor_head.parameters(), 'lr': self.lr},
-            {'params': self.critic_fe.parameters(), 'lr': self.lr},
-            {'params': self.critic_head.parameters(), 'lr': self.lr}
-        ])
+        self.optimizer = optim.Adam(
+            [
+                {"params": self.actor_fe.parameters(), "lr": self.lr},
+                {"params": self.actor_head.parameters(), "lr": self.lr},
+                {"params": self.critic_fe.parameters(), "lr": self.lr},
+                {"params": self.critic_head.parameters(), "lr": self.lr},
+            ]
+        )
 
-        self.policy_old_fe = get_model(model_name, input_shape, model_output_dim, **config).to(device)
+        self.policy_old_fe = get_model(
+            model_name, input_shape, model_output_dim, **config
+        ).to(device)
         self.policy_old_head = nn.Linear(model_output_dim, self.n_actions).to(device)
 
         self.policy_old_fe.load_state_dict(self.actor_fe.state_dict())
@@ -72,9 +81,15 @@ class PPO(BaseAgent):
 
     def update(self, batch=None):
         # Convert buffer to tensors
-        states = torch.tensor(np.array([t[0] for t in self.buffer]), dtype=torch.float32).to(self.device)
-        actions = torch.tensor(np.array([t[1] for t in self.buffer]), dtype=torch.int64).to(self.device)
-        log_probs_old = torch.tensor(np.array([t[2] for t in self.buffer]), dtype=torch.float32).to(self.device)
+        states = torch.tensor(
+            np.array([t[0] for t in self.buffer]), dtype=torch.float32
+        ).to(self.device)
+        actions = torch.tensor(
+            np.array([t[1] for t in self.buffer]), dtype=torch.int64
+        ).to(self.device)
+        log_probs_old = torch.tensor(
+            np.array([t[2] for t in self.buffer]), dtype=torch.float32
+        ).to(self.device)
         rewards = [t[3] for t in self.buffer]
         dones = [t[4] for t in self.buffer]
 
@@ -110,9 +125,15 @@ class PPO(BaseAgent):
             # Surrogate Loss
             advantages = returns - state_values.detach()
             surr1 = ratios * advantages
-            surr2 = torch.clamp(ratios, 1 - self.eps_clip, 1 + self.eps_clip) * advantages
+            surr2 = (
+                torch.clamp(ratios, 1 - self.eps_clip, 1 + self.eps_clip) * advantages
+            )
 
-            loss = -torch.min(surr1, surr2) + 0.5 * nn.MSELoss()(state_values, returns) - 0.01 * dist_entropy
+            loss = (
+                -torch.min(surr1, surr2)
+                + 0.5 * nn.MSELoss()(state_values, returns)
+                - 0.01 * dist_entropy
+            )
 
             self.optimizer.zero_grad()
             loss.mean().backward()
@@ -128,20 +149,23 @@ class PPO(BaseAgent):
         return loss_val / self.K_epochs
 
     def save(self, path):
-        torch.save({
-            'actor_fe': self.actor_fe.state_dict(),
-            'actor_head': self.actor_head.state_dict(),
-            'critic_fe': self.critic_fe.state_dict(),
-            'critic_head': self.critic_head.state_dict(),
-            'optimizer': self.optimizer.state_dict()
-        }, path)
+        torch.save(
+            {
+                "actor_fe": self.actor_fe.state_dict(),
+                "actor_head": self.actor_head.state_dict(),
+                "critic_fe": self.critic_fe.state_dict(),
+                "critic_head": self.critic_head.state_dict(),
+                "optimizer": self.optimizer.state_dict(),
+            },
+            path,
+        )
 
     def load(self, path):
         checkpoint = torch.load(path, map_location=self.device)
-        self.actor_fe.load_state_dict(checkpoint['actor_fe'])
-        self.actor_head.load_state_dict(checkpoint['actor_head'])
-        self.critic_fe.load_state_dict(checkpoint['critic_fe'])
-        self.critic_head.load_state_dict(checkpoint['critic_head'])
-        self.optimizer.load_state_dict(checkpoint['optimizer'])
+        self.actor_fe.load_state_dict(checkpoint["actor_fe"])
+        self.actor_head.load_state_dict(checkpoint["actor_head"])
+        self.critic_fe.load_state_dict(checkpoint["critic_fe"])
+        self.critic_head.load_state_dict(checkpoint["critic_head"])
+        self.optimizer.load_state_dict(checkpoint["optimizer"])
         self.policy_old_fe.load_state_dict(self.actor_fe.state_dict())
         self.policy_old_head.load_state_dict(self.actor_head.state_dict())

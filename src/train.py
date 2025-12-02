@@ -6,6 +6,7 @@ from tqdm import tqdm
 from src.utils.env_utils import make_env
 from src.agents.dqn import DQN
 from src.agents.ppo import PPO
+import gc
 
 
 def train(args):
@@ -13,7 +14,7 @@ def train(args):
     print(f"Using device: {device}")
 
     # Create environment
-    render_mode = "human" if args.render else None
+    render_mode = "rgb_array" if args.render else None
     env = make_env(args.scenario, render_mode=render_mode)
 
     # Initialize agent
@@ -130,7 +131,9 @@ def train(args):
         episode_lengths.append(episode_length)
         episode_idx += 1
 
+        
         if episode_idx % 10 == 0:
+            gc.collect()
             avg_reward = np.mean(episode_rewards[-10:])
             pbar.set_description(f"Ep: {episode_idx}, Avg Reward: {avg_reward:.2f}")
 

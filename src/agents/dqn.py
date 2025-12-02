@@ -8,6 +8,7 @@ from collections import deque
 from src.agents.base_agent import BaseAgent
 from src.models.cnn import get_model
 
+
 class ReplayBuffer:
     def __init__(self, capacity):
         self.buffer = deque(maxlen=capacity)
@@ -16,11 +17,14 @@ class ReplayBuffer:
         self.buffer.append((state, action, reward, next_state, done))
 
     def sample(self, batch_size):
-        state, action, reward, next_state, done = zip(*random.sample(self.buffer, batch_size))
+        state, action, reward, next_state, done = zip(
+            *random.sample(self.buffer, batch_size)
+        )
         return np.array(state), action, reward, np.array(next_state), done
 
     def __len__(self):
         return len(self.buffer)
+
 
 class DQN(BaseAgent):
     def __init__(self, observation_space, action_space, config, device):
@@ -42,27 +46,37 @@ class DQN(BaseAgent):
 
         # Policy Network
         # Remove model_name from kwargs because it is already passed as positional argument
-        if 'model_name' in config:
-            del config['model_name']
-        self.feature_extractor = get_model(model_name, input_shape, model_output_dim, **config).to(device)
+        if "model_name" in config:
+            del config["model_name"]
+        self.feature_extractor = get_model(
+            model_name, input_shape, model_output_dim, **config
+        ).to(device)
         self.head = nn.Linear(model_output_dim, self.n_actions).to(device)
 
         # Target Network
-        self.target_feature_extractor = get_model(model_name, input_shape, model_output_dim, **config).to(device)
+        self.target_feature_extractor = get_model(
+            model_name, input_shape, model_output_dim, **config
+        ).to(device)
         self.target_head = nn.Linear(model_output_dim, self.n_actions).to(device)
-        self.target_feature_extractor.load_state_dict(self.feature_extractor.state_dict())
+        self.target_feature_extractor.load_state_dict(
+            self.feature_extractor.state_dict()
+        )
         self.target_head.load_state_dict(self.head.state_dict())
         self.target_feature_extractor.eval()
         self.target_head.eval()
 
-        self.optimizer = optim.Adam(list(self.feature_extractor.parameters()) + list(self.head.parameters()), lr=config.get("lr", 1e-4))
+        self.optimizer = optim.Adam(
+            list(self.feature_extractor.parameters()) + list(self.head.parameters()),
+            lr=config.get("lr", 1e-4),
+        )
 
         self.steps_done = 0
 
     def select_action(self, state, evaluate=False):
         sample = random.random()
-        eps_threshold = self.epsilon_end + (self.epsilon - self.epsilon_end) * \
-            np.exp(-1. * self.steps_done / self.epsilon_decay)
+        eps_threshold = self.epsilon_end + (self.epsilon - self.epsilon_end) * np.exp(
+            -1.0 * self.steps_done / self.epsilon_decay
+        )
 
         if not evaluate:
             self.steps_done += 1
@@ -96,9 +110,13 @@ class DQN(BaseAgent):
             next_features = self.target_feature_extractor(next_state)
             next_q_values = self.target_head(next_features)
             next_state_values = next_q_values.max(1)[0]
-            expected_state_action_values = (next_state_values * self.gamma) * (1 - done) + reward
+            expected_state_action_values = (next_state_values * self.gamma) * (
+                1 - done
+            ) + reward
 
-        loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
+        loss = F.smooth_l1_loss(
+            state_action_values, expected_state_action_values.unsqueeze(1)
+        )
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -107,20 +125,27 @@ class DQN(BaseAgent):
         return loss.item()
 
     def update_target_network(self):
-        self.target_feature_extractor.load_state_dict(self.feature_extractor.state_dict())
+        self.target_feature_extractor.load_state_dict(
+            self.feature_extractor.state_dict()
+        )
         self.target_head.load_state_dict(self.head.state_dict())
 
     def save(self, path):
-        torch.save({
-            'feature_extractor': self.feature_extractor.state_dict(),
-            'head': self.head.state_dict(),
-            'optimizer': self.optimizer.state_dict()
-        }, path)
+        torch.save(
+            {
+                "feature_extractor": self.feature_extractor.state_dict(),
+                "head": self.head.state_dict(),
+                "optimizer": self.optimizer.state_dict(),
+            },
+            path,
+        )
 
     def load(self, path):
         checkpoint = torch.load(path, map_location=self.device)
-        self.feature_extractor.load_state_dict(checkpoint['feature_extractor'])
-        self.head.load_state_dict(checkpoint['head'])
-        self.optimizer.load_state_dict(checkpoint['optimizer'])
-        self.target_feature_extractor.load_state_dict(self.feature_extractor.state_dict())
+        self.feature_extractor.load_state_dict(checkpoint["feature_extractor"])
+        self.head.load_state_dict(checkpoint["head"])
+        self.optimizer.load_state_dict(checkpoint["optimizer"])
+        self.target_feature_extractor.load_state_dict(
+            self.feature_extractor.state_dict()
+        )
         self.target_head.load_state_dict(self.head.state_dict())
