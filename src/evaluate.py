@@ -8,6 +8,12 @@ from src.agents.ppo import PPO
 
 
 def evaluate(args):
+    """
+    Evaluates a trained agent.
+
+    Args:
+        args: Parsed command line arguments containing evaluation configuration.
+    """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 

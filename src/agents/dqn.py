@@ -10,13 +10,19 @@ from src.models.cnn import get_model
 
 
 class ReplayBuffer:
+    """
+    Experience Replay Buffer for DQN.
+    Stores transitions (state, action, reward, next_state, done) and samples random batches.
+    """
     def __init__(self, capacity):
         self.buffer = deque(maxlen=capacity)
 
     def push(self, state, action, reward, next_state, done):
+        """Saves a transition."""
         self.buffer.append((state, action, reward, next_state, done))
 
     def sample(self, batch_size):
+        """Samples a random batch of transitions."""
         state, action, reward, next_state, done = zip(
             *random.sample(self.buffer, batch_size)
         )
@@ -27,6 +33,12 @@ class ReplayBuffer:
 
 
 class DQN(BaseAgent):
+    """
+    Deep Q-Network (DQN) Agent.
+
+    Uses a Policy Network to select actions and a Target Network to stabilize training.
+    Supports various CNN architectures via the 'model_name' config.
+    """
     def __init__(self, observation_space, action_space, config, device):
         super(DQN, self).__init__(observation_space, action_space, device)
         self.config = config
@@ -73,6 +85,16 @@ class DQN(BaseAgent):
         self.steps_done = 0
 
     def select_action(self, state, evaluate=False):
+        """
+        Selects an action using Epsilon-Greedy strategy.
+
+        Args:
+            state: Current observation.
+            evaluate (bool): If True, always selects the greedy action (no exploration).
+
+        Returns:
+            int: The selected action.
+        """
         sample = random.random()
         eps_threshold = self.epsilon_end + (self.epsilon - self.epsilon_end) * np.exp(
             -1.0 * self.steps_done / self.epsilon_decay
@@ -91,6 +113,12 @@ class DQN(BaseAgent):
             return random.randrange(self.n_actions)
 
     def update(self, batch=None):
+        """
+        Updates the policy network using a batch of transitions from the replay buffer.
+
+        Returns:
+            float: The loss value.
+        """
         if len(self.memory) < self.batch_size:
             return None
 

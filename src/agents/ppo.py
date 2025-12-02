@@ -8,6 +8,12 @@ from src.models.cnn import get_model
 
 
 class PPO(BaseAgent):
+    """
+    Proximal Policy Optimization (PPO) Agent.
+
+    Uses Actor-Critic architecture with clipped objective function.
+    Separates Actor and Critic networks for simplicity and stability.
+    """
     def __init__(self, observation_space, action_space, config, device):
         super(PPO, self).__init__(observation_space, action_space, device)
         self.config = config
