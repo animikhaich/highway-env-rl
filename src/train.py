@@ -10,14 +10,25 @@ import gc
 
 
 def train(args):
+    """
+    Main training loop for the RL agent.
+
+    Args:
+        args: Parsed command line arguments containing training configuration.
+              Includes algo, model, scenario, total_timesteps, etc.
+    """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
     # Create environment
+    # We use "rgb_array" for rendering if requested. This avoids opening a window
+    # but allows capturing frames if needed (though currently we just discard them
+    # in the loop, potentially for monitoring or future video saving).
     render_mode = "rgb_array" if args.render else None
     env = make_env(args.scenario, render_mode=render_mode)
 
-    # Initialize agent
+    # Initialize agent configuration
+    # These hyperparameters are chosen based on standard DQN/PPO baselines for highway-env.
     config = {
         "model_name": args.model,
         "model_output_dim": args.output_dim,
@@ -26,11 +37,11 @@ def train(args):
         "batch_size": args.batch_size,
         "epsilon_start": 1.0,
         "epsilon_end": 0.05,
-        "epsilon_decay": args.total_timesteps * 0.1,
-        "memory_size": 15000,
-        "target_update": 50,
-        "k_epochs": 4,
-        "eps_clip": 0.2,
+        "epsilon_decay": args.total_timesteps * 0.1,  # Decay epsilon over 10% of total steps
+        "memory_size": 15000,  # Replay buffer size
+        "target_update": 50,   # Update target network every 50 steps
+        "k_epochs": 4,         # PPO optimization epochs
+        "eps_clip": 0.2,       # PPO clipping parameter
     }
 
     # Custom layers config if model is custom
@@ -75,7 +86,8 @@ def train(args):
     # Training Loop
     episode_rewards = []
     episode_lengths = []
-    losses = []
+    # losses list removed to avoid potential memory accumulation if loss is not properly detached
+    # Although loss.item() returns a float, accumulating 10k+ items is unnecessary if not used.
 
     timestep = 0
     episode_idx = 0
@@ -97,9 +109,8 @@ def train(args):
                 action = agent.select_action(state)
                 next_state, reward, done, truncated, _ = env.step(action)
                 agent.memory.push(state, action, reward, next_state, done)
-                loss = agent.update()
-                if loss is not None:
-                    losses.append(loss)
+                agent.update()
+
                 if timestep % agent.target_update == 0:
                     agent.update_target_network()
             elif args.algo == "ppo":
@@ -107,9 +118,6 @@ def train(args):
                 next_state, reward, done, truncated, _ = env.step(action)
                 agent.store_transition((state, action, log_prob, reward, done))
                 # PPO update is usually done after some steps or at end of episode.
-                # Here we can do it at end of episode or every N steps.
-                # Let's do it every 'batch_size' steps or end of episode if batch is full enough?
-                # Standard PPO collects a trajectory then updates.
                 pass
 
             state = next_state
@@ -121,23 +129,20 @@ def train(args):
             if timestep >= args.total_timesteps:
                 break
 
-        # PPO Update at end of episode (or we could wait for N steps)
+        # PPO Update at end of episode
         if args.algo == "ppo":
-            loss = agent.update()
-            if loss is not None:
-                losses.append(loss)
+            agent.update()
 
         episode_rewards.append(episode_reward)
         episode_lengths.append(episode_length)
         episode_idx += 1
-
         
         if episode_idx % 10 == 0:
-            gc.collect()
             avg_reward = np.mean(episode_rewards[-10:])
             pbar.set_description(f"Ep: {episode_idx}, Avg Reward: {avg_reward:.2f}")
 
     pbar.close()
+    env.close()
 
     # Save model
     os.makedirs(args.save_dir, exist_ok=True)

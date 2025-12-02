@@ -4,6 +4,9 @@ import torch.nn.functional as F
 
 
 class BaseCNN(nn.Module):
+    """
+    Base class for CNN feature extractors.
+    """
     def __init__(self, input_shape, output_dim=512):
         super(BaseCNN, self).__init__()
         self.input_shape = input_shape
@@ -19,6 +22,7 @@ class BaseCNN(nn.Module):
 class SmallCNN(BaseCNN):
     """
     A small LeNet-like CNN.
+    Suitable for simple environments or quick testing.
     """
 
     def __init__(self, input_shape, output_dim=256):
@@ -50,7 +54,8 @@ class SmallCNN(BaseCNN):
 
 class LargeCNN(BaseCNN):
     """
-    A larger CNN (ResNet-like blocks could be added, here just deeper/wider).
+    A larger CNN with more convolutional layers.
+    Suitable for more complex visual environments.
     """
 
     def __init__(self, input_shape, output_dim=512):
@@ -126,6 +131,11 @@ class CustomCNN(BaseCNN):
 
 
 class VGGCNN(BaseCNN):
+    """
+    A CNN architecture inspired by VGG-11/13.
+    Uses blocks of Conv2d + ReLU followed by MaxPool2d.
+    Features a heavy classifier head with fully connected layers.
+    """
     def __init__(self, input_shape, output_dim=512):
         super(VGGCNN, self).__init__(input_shape, output_dim)
         c, h, w = input_shape
@@ -206,6 +216,10 @@ class BasicBlock(nn.Module):
 
 
 class ResNetCNN(BaseCNN):
+    """
+    A ResNet-18 inspired architecture.
+    Uses Residual Blocks (BasicBlock) to allow training deeper networks.
+    """
     def __init__(self, input_shape, output_dim=512):
         super(ResNetCNN, self).__init__(input_shape, output_dim)
         c, h, w = input_shape

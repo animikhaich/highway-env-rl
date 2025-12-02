@@ -4,9 +4,17 @@ import warnings
 
 def make_env(scenario, render_mode=None):
     """
-    Creates the environment.
-    scenario: "highway", "merge", "roundabout", "parking", "intersection", "racetrack"
-    render_mode: "rgb_array", "human", or None
+    Creates and configures the highway-env environment.
+
+    We use GrayscaleObservation with frame stacking to provide temporal context to the agent
+    while keeping the input dimensionality manageable (128x64).
+
+    Args:
+        scenario (str): Name of the scenario ("highway", "merge", etc.).
+        render_mode (str, optional): Rendering mode ("rgb_array", "human", or None).
+
+    Returns:
+        gym.Env: The configured environment.
     """
 
     env_id_map = {
